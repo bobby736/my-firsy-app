@@ -1,0 +1,162 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: TaskTrackerScreen(),
+    );
+  }
+}
+
+class TaskTrackerScreen extends StatefulWidget {
+  const TaskTrackerScreen({super.key});
+
+  @override
+  State<TaskTrackerScreen> createState() => _TaskTrackerScreenState();
+}
+
+class _TaskTrackerScreenState extends State<TaskTrackerScreen> {
+  int _completedTasks = 0;
+  int _sessionSeconds = 0;
+  Timer? _timer;
+
+  // ⚠️ BUG/ANTI-PATTERN 1: Controller declared without proper lifecycle management
+  late TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ⚠️ BUG/ANTI-PATTERN 2: Unsafe asynchronous timer callback (lacks mounted check)
+    // ⚠️ BUG/ANTI-PATTERN 3: Missing disposal/cleanup setup
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _sessionSeconds++;
+      });
+    });
+  }
+
+  // ⚠️ BUG/ANTI-PATTERN 4: Missing dispose() method to free timer and controller
+
+  @override
+  Widget build(BuildContext context) {
+    // ⚠️ BUG/ANTI-PATTERN 5: Re-instantiating the controller on every single build!
+    // This wipes the cursor position and resets user input on rebuilds.
+    _nameController = TextEditingController();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Student Task Tracker'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Session Timer Display
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Session Time:', style: TextStyle(fontSize: 16)),
+                    Text(
+                      '$_sessionSeconds s',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Student Name Input
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Student Name',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Task Counter Card
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Completed Tasks',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$_completedTasks',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // ⚠️ BUG/ANTI-PATTERN 6: Cannot be drop below 0
+                        IconButton.filledTonal(
+                          onPressed: () {
+                            setState(() {
+                              _completedTasks--;
+                            });
+                          },
+                          icon: const Icon(Icons.remove),
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton.filled(
+                          onPressed: () {
+                            setState(() {
+                              _completedTasks++;
+                            });
+                          },
+                          icon: const Icon(Icons.add),
+                        ),
+                        const SizedBox(width: 16),
+                        OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _completedTasks = 0;
+                            });
+                          },
+                          child: const Text('Reset'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
